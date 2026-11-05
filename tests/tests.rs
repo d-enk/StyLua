@@ -465,6 +465,36 @@ end
 }
 
 #[test]
+fn test_collapse_simple_statement_input_preserves_hug_with_long_function_body() {
+    // The multiline function argument was hugged in the input (the trailing argument follows
+    // `end` on the same line). Input mode should preserve this shape regardless of how long
+    // the lines inside the function body are — the body is formatted independently.
+    // https://github.com/JohnnyMorganz/StyLua/issues/863
+    let config = Config {
+        collapse_simple_statement: CollapseSimpleStatement::Input,
+        ..Config::default()
+    };
+
+    insta::assert_snapshot!(
+        format_code(
+            r#"pcall(function()
+	return aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa == bbb
+end, 5)
+"#,
+            config,
+            None,
+            OutputVerification::None
+        )
+        .unwrap(),
+        @r###"
+    pcall(function()
+    	return aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa == bbb
+    end, 5)
+    "###
+    );
+}
+
+#[test]
 fn test_preserve_block_newline_gaps() {
     insta::glob!("inputs-preserve-block-newline-gaps/*.lua", |path| {
         let contents = std::fs::read_to_string(path).unwrap();

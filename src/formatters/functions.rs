@@ -264,8 +264,11 @@ fn function_args_multiline_heuristic(
         let argument = pair.value();
         match argument {
             Expression::Function(anonymous_function) => {
-                // Check to see whether it has been expanded
-                let is_expanded = !should_collapse_function_body(ctx, anonymous_function.body());
+                // Check whether the function has been expanded onto multiple lines.
+                // `should_collapse_function_body` cannot be used here: it relies on token positions to preserve the input shape,
+                // but the argument has already been re-formatted, so those positions are meaningless.
+                // Inspect the formatting we just produced instead.
+                let is_expanded = trivia_util::spans_multiple_lines(anonymous_function);
                 if is_expanded {
                     // If we have a mixture of multiline args, and other arguments
                     // Then the function args should be expanded
