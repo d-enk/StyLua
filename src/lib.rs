@@ -7,6 +7,7 @@ use thiserror::Error;
 #[cfg(all(target_arch = "wasm32", feature = "wasm-bindgen"))]
 use wasm_bindgen::prelude::*;
 
+mod align_comments;
 #[macro_use]
 mod context;
 #[cfg(feature = "editorconfig")]
@@ -213,6 +214,20 @@ impl SortRequiresConfig {
     }
 }
 
+/// Whether to align trailing comments into a column
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Deserialize)]
+#[cfg_attr(all(target_arch = "wasm32", feature = "wasm-bindgen"), wasm_bindgen)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize))]
+#[cfg_attr(feature = "fromstr", derive(strum::EnumString))]
+pub enum AlignTrailingComments {
+    /// Leave trailing comments as they are, separated from the code by a single space
+    #[default]
+    Never,
+    /// Align the trailing comments of consecutive lines which share the same indentation, in the
+    /// style of `gofmt`
+    AdjacentLines,
+}
+
 /// When to use spaces after function names
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Deserialize)]
 #[cfg_attr(all(target_arch = "wasm32", feature = "wasm-bindgen"), wasm_bindgen)]
@@ -282,6 +297,12 @@ pub struct Config {
     /// * if space_after_function_names is set to [`SpaceAfterFunctionNames::Calls`] a space is used only for calls.
     /// * if space_after_function_names is set to [`SpaceAfterFunctionNames::Always`] a space is used for both definitions and calls.
     pub space_after_function_names: SpaceAfterFunctionNames,
+    /// Whether to align trailing comments into a column.
+    /// * if align_trailing_comments is set to [`AlignTrailingComments::Never`] a trailing comment
+    ///   is separated from the code by a single space.
+    /// * if align_trailing_comments is set to [`AlignTrailingComments::AdjacentLines`] the trailing
+    ///   comments of consecutive lines with the same indentation are aligned, as `gofmt` does.
+    pub align_trailing_comments: AlignTrailingComments,
 }
 
 #[cfg_attr(all(target_arch = "wasm32", feature = "wasm-bindgen"), wasm_bindgen)]
@@ -308,6 +329,7 @@ impl Default for Config {
             sort_requires: SortRequiresConfig::default(),
             space_after_function_names: SpaceAfterFunctionNames::default(),
             block_newline_gaps: BlockNewlineGaps::default(),
+            align_trailing_comments: AlignTrailingComments::default(),
         }
     }
 }
@@ -467,6 +489,16 @@ pub fn format_code(
 
     let ast = format_ast(input_ast, config, range, verify_output)?;
     let output = ast.to_string();
+
+    // Alignment is a property of a group of lines, not of a single node, so it is applied to the
+    // rendered output. It only adds whitespace, so the AST verified above is unaffected.
+    // Range formatting is left alone: the post-pass sees the whole file, and would re-align lines
+    // outside the requested range.
+    if range.is_none() {
+        if let Some(aligned) = align_comments::align_trailing_comments(&output, config) {
+            return Ok(aligned);
+        }
+    }
 
     Ok(output)
 }

@@ -1,6 +1,6 @@
 use crate::{
-    BlockNewlineGaps, CallParenType, CollapseSimpleStatement, Config, IndentType, LineEndings,
-    LuaVersion, QuoteStyle, SortRequiresConfig, SpaceAfterFunctionNames,
+    AlignTrailingComments, BlockNewlineGaps, CallParenType, CollapseSimpleStatement, Config,
+    IndentType, LineEndings, LuaVersion, QuoteStyle, SortRequiresConfig, SpaceAfterFunctionNames,
 };
 use ec4rs::{
     properties_of,
@@ -107,6 +107,12 @@ property_choice! {
     (Preserve, "preserve")
 }
 
+property_choice! {
+    StyluaAlignTrailingCommentsChoice, "stylua_align_trailing_comments";
+    (Never, "never"),
+    (AdjacentLines, "adjacentlines")
+}
+
 // Override StyLua config with EditorConfig properties
 fn load(mut config: Config, properties: &Properties) -> Config {
     if let Ok(end_of_line) = properties.get::<EndOfLine>() {
@@ -202,6 +208,14 @@ fn load(mut config: Config, properties: &Properties) -> Config {
         config.block_newline_gaps = match block_newline_gaps {
             StyluaBlockNewlineGapsChoice::Never => BlockNewlineGaps::Never,
             StyluaBlockNewlineGapsChoice::Preserve => BlockNewlineGaps::Preserve,
+        };
+    }
+    if let Ok(align_trailing_comments) = properties.get::<StyluaAlignTrailingCommentsChoice>() {
+        config.align_trailing_comments = match align_trailing_comments {
+            StyluaAlignTrailingCommentsChoice::Never => AlignTrailingComments::Never,
+            StyluaAlignTrailingCommentsChoice::AdjacentLines => {
+                AlignTrailingComments::AdjacentLines
+            }
         };
     }
 
@@ -517,6 +531,25 @@ mod tests {
     }
 
     #[test]
+    fn test_stylua_align_trailing_comments_never() {
+        let mut properties = Properties::new();
+        properties.insert_raw_for_key("stylua_align_trailing_comments", "Never");
+        let config = Config::from(&properties);
+        assert_eq!(config.align_trailing_comments, AlignTrailingComments::Never);
+    }
+
+    #[test]
+    fn test_stylua_align_trailing_comments_adjacent_lines() {
+        let mut properties = Properties::new();
+        properties.insert_raw_for_key("stylua_align_trailing_comments", "AdjacentLines");
+        let config = Config::from(&properties);
+        assert_eq!(
+            config.align_trailing_comments,
+            AlignTrailingComments::AdjacentLines
+        );
+    }
+
+    #[test]
     fn test_invalid_properties() {
         let mut properties = Properties::new();
         let default_config = Config::new();
@@ -531,6 +564,7 @@ mod tests {
             "sort_requires",
             "stylua_syntax",
             "stylua_block_newline_gaps",
+            "stylua_align_trailing_comments",
         ] {
             properties.insert_raw_for_key(key, invalid_value);
         }
@@ -551,5 +585,9 @@ mod tests {
         );
         assert_eq!(config.syntax, default_config.syntax);
         assert_eq!(config.block_newline_gaps, default_config.block_newline_gaps);
+        assert_eq!(
+            config.align_trailing_comments,
+            default_config.align_trailing_comments
+        );
     }
 }

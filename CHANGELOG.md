@@ -7,9 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Added `align_trailing_comments` option, which aligns the trailing comments of consecutive lines into a column, in the style of `gofmt` ([#252](https://github.com/JohnnyMorganz/StyLua/issues/252))
+
 ### Fixed
 
 - Fixed the parameters of an assigned function being expanded unnecessarily when the variable list, type specifier or attribute spans multiple lines
+- Fixed a multiline function argument with a long body forcing the enclosing call to expand in `collapse_simple_statement = "Input"` mode ([#863](https://github.com/JohnnyMorganz/StyLua/issues/863))
 
 ## [2.6.0] - 2026-10-10
 

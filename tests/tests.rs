@@ -1,6 +1,6 @@
 use stylua_lib::{
-    format_code, BlockNewlineGaps, CollapseSimpleStatement, Config, LineEndings, LuaVersion,
-    OutputVerification, SortRequiresConfig,
+    format_code, AlignTrailingComments, BlockNewlineGaps, CollapseSimpleStatement, Config,
+    LineEndings, LuaVersion, OutputVerification, SortRequiresConfig,
 };
 
 fn format(input: &str, syntax: LuaVersion) -> String {
@@ -710,4 +710,87 @@ fn test_crlf_comments_in_block_statements() {
 #[test]
 fn test_crlf_comments_in_luau_types() {
     assert_crlf_normalised("type Foo<T> = -- a\n\tT\ntype Bar = A -- b\n\t-- c\n\t| B\n");
+}
+
+#[test]
+fn test_align_trailing_comments() {
+    // Groups are runs of consecutive lines with a trailing comment and the same indentation, so
+    // the blank line, the line without a comment and the table body each start a new group.
+    insta::assert_snapshot!(
+        format_code(
+            r#"local x = 1 -- one
+local yyy = 2 -- two
+local no_comment = 3
+
+local t = {
+	a = 1, -- alpha
+	long_key = 2, -- beta
+}
+
+-- stylua: ignore
+local ignored = {
+	a = 1,   -- hand aligned
+	bbb = 2, -- hand aligned
+}
+"#,
+            Config {
+                align_trailing_comments: AlignTrailingComments::AdjacentLines,
+                ..Config::default()
+            },
+            None,
+            OutputVerification::None
+        )
+        .unwrap(),
+        @r###"
+    local x = 1   -- one
+    local yyy = 2 -- two
+    local no_comment = 3
+
+    local t = {
+    	a = 1,        -- alpha
+    	long_key = 2, -- beta
+    }
+
+    -- stylua: ignore
+    local ignored = {
+    	a = 1,   -- hand aligned
+    	bbb = 2, -- hand aligned
+    }
+    "###
+    );
+}
+
+#[test]
+fn test_align_trailing_comments_is_idempotent() {
+    let input = "local x = 1 -- one\nlocal yyy = 2 -- two\n";
+    let config = Config {
+        align_trailing_comments: AlignTrailingComments::AdjacentLines,
+        ..Config::default()
+    };
+
+    let once = format_code(input, config, None, OutputVerification::None).unwrap();
+    let twice = format_code(&once, config, None, OutputVerification::Full).unwrap();
+
+    assert_eq!(once, twice);
+}
+
+#[test]
+fn test_align_trailing_comments_is_ignored_for_range_formatting() {
+    // The post-pass sees the whole file, so aligning would also move lines outside the requested
+    // range. Range formatting therefore leaves the comments alone.
+    let input = "local x = 1 -- one\nlocal yyy = 2 -- two\n";
+    let config = Config {
+        align_trailing_comments: AlignTrailingComments::AdjacentLines,
+        ..Config::default()
+    };
+
+    let output = format_code(
+        input,
+        config,
+        Some(stylua_lib::Range::from_values(Some(20), None)),
+        OutputVerification::None,
+    )
+    .unwrap();
+
+    assert_eq!(output, input);
 }

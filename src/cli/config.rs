@@ -292,6 +292,9 @@ fn load_overrides(config: Config, opt: &Opt) -> Config {
     if let Some(preserve_block_newline_gaps) = opt.format_opts.preserve_block_newline_gaps {
         new_config.block_newline_gaps = preserve_block_newline_gaps.into();
     };
+    if let Some(align_trailing_comments) = opt.format_opts.align_trailing_comments {
+        new_config.align_trailing_comments = align_trailing_comments.into();
+    };
     if opt.format_opts.sort_requires {
         new_config.sort_requires = SortRequiresConfig { enabled: true }
     }
@@ -304,7 +307,8 @@ mod tests {
     use super::*;
     use clap::StructOpt;
     use stylua_lib::{
-        CallParenType, CollapseSimpleStatement, IndentType, LineEndings, LuaVersion, QuoteStyle,
+        AlignTrailingComments, CallParenType, CollapseSimpleStatement, IndentType, LineEndings,
+        LuaVersion, QuoteStyle,
     };
 
     #[test]
@@ -372,6 +376,21 @@ mod tests {
         assert_eq!(
             config.collapse_simple_statement,
             CollapseSimpleStatement::Input
+        );
+    }
+
+    #[test]
+    fn test_override_align_trailing_comments() {
+        let override_opt = Opt::parse_from(vec![
+            "BINARY_NAME",
+            "--align-trailing-comments",
+            "AdjacentLines",
+        ]);
+        let default_config = Config::new();
+        let config = load_overrides(default_config, &override_opt);
+        assert_eq!(
+            config.align_trailing_comments,
+            AlignTrailingComments::AdjacentLines
         );
     }
 }
